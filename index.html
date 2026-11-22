@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pawstack — Two endpoints. A universe of faces.</title>
+<meta name="description" content="Pawstack is the pet-intelligence layer of the web. Two endpoints, zero auth, infinite faces.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS / RESET ============ */
+:root{
+  --bg:#05050d; --bg2:#0b0b1c; --ink:#f4f4ff; --mut:#9a9ab8; --dim:#5c5c7a;
+  --pink:#ff5fa2; --violet:#8b5cff; --cyan:#00e5ff; --lime:#c0ff3e; --amber:#ffb43a;
+  --grad:linear-gradient(92deg,var(--pink),var(--violet) 32%,var(--cyan) 68%,var(--lime));
+  --grad2:linear-gradient(92deg,var(--cyan),var(--violet) 60%,var(--pink));
+  --glass:rgba(255,255,255,.045); --line:rgba(255,255,255,.09);
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif; --serif:'Instrument Serif',Georgia,serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased;line-height:1.5}
+::selection{background:var(--pink);color:#0a0010}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:4px}
+
+/* ============ AMBIENT BACKGROUND ============ */
+.aurora{position:fixed;inset:-20%;z-index:-3;pointer-events:none;filter:blur(70px);opacity:.55}
+.aurora i{position:absolute;border-radius:50%;display:block}
+.aurora .a1{width:52vw;height:52vw;left:-10%;top:-12%;background:radial-gradient(circle at 30% 30%,rgba(139,92,255,.5),transparent 62%);animation:drift1 26s ease-in-out infinite alternate}
+.aurora .a2{width:44vw;height:44vw;right:-8%;top:22%;background:radial-gradient(circle at 60% 40%,rgba(0,229,255,.34),transparent 62%);animation:drift2 31s ease-in-out infinite alternate}
+.aurora .a3{width:48vw;height:48vw;left:22%;bottom:-18%;background:radial-gradient(circle at 50% 50%,rgba(255,95,162,.32),transparent 60%);animation:drift3 37s ease-in-out infinite alternate}
+@keyframes drift1{to{transform:translate(9vw,7vh) scale(1.15)}}
+@keyframes drift2{to{transform:translate(-8vw,10vh) scale(.9)}}
+@keyframes drift3{to{transform:translate(6vw,-9vh) scale(1.2)}}
+.gridbg{position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 30%,#000 20%,transparent 75%);
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 30%,#000 20%,transparent 75%)}
+.noise{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E")}
+body.rainbow .aurora{animation:hue 4s linear infinite}
+@keyframes hue{to{filter:blur(70px) hue-rotate(360deg);opacity:.8}}
+
+/* ============ PRELOADER ============ */
+#boot{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:transform .7s cubic-bezier(.7,0,.2,1),visibility .7s}
+body.loaded #boot{transform:translateY(-101%);visibility:hidden}
+.bootbox{width:min(560px,86vw);font-family:var(--mono);font-size:13px}
+.bootbox h4{font-size:11px;letter-spacing:.35em;color:var(--dim);font-weight:500;margin-bottom:18px}
+#bootlog{min-height:120px;color:var(--mut);white-space:pre-wrap}
+#bootlog b{color:var(--lime);font-weight:500}
+#bootbar{height:3px;background:rgba(255,255,255,.08);border-radius:99px;margin-top:22px;overflow:hidden}
+#bootbar i{display:block;height:100%;width:0;background:var(--grad);border-radius:99px;transition:width .18s ease}
+#bootpct{margin-top:10px;text-align:right;color:var(--cyan);font-size:11px}
+
+/* ============ CURSOR / PROGRESS ============ */
+#cur-dot,#cur-ring{position:fixed;top:0;left:0;pointer-events:none;z-index:99;border-radius:50%;opacity:0}
+#cur-dot{width:7px;height:7px;background:var(--pink);box-shadow:0 0 12px var(--pink)}
+#cur-ring{width:34px;height:34px;border:1.5px solid rgba(0,229,255,.65);transition:transform .25s ease,border-color .25s ease,opacity .3s}
+body.cursor-on #cur-dot,body.cursor-on #cur-ring{opacity:1}
+body.cursor-on, body.cursor-on *{cursor:none}
+#cur-ring.hot{transform:scale(1.6);border-color:var(--pink)}
+.spark{position:fixed;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:98;animation:spark .6s ease-out forwards}
+@keyframes spark{to{transform:translate(var(--sx),var(--sy)) scale(.1);opacity:0}}
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--grad);z-index:101;box-shadow:0 0 14px rgba(139,92,255,.8)}
+
+/* ============ NAV ============ */
+nav{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:space-between;padding:18px clamp(20px,4vw,52px);transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
+nav.scrolled{background:rgba(7,7,18,.72);backdrop-filter:blur(18px);border-color:var(--line)}
+.logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:17px;letter-spacing:-.02em}
+.logo .paw{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:var(--grad);font-size:17px;box-shadow:0 0 22px rgba(139,92,255,.55);animation:pawpulse 3.2s ease-in-out infinite}
+@keyframes pawpulse{50%{box-shadow:0 0 34px rgba(0,229,255,.65);transform:rotate(-8deg)}}
+.logo em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--cyan)}
+.nlinks{display:flex;gap:30px;font-size:13px;font-weight:500;color:var(--mut)}
+.nlinks a{position:relative;transition:color .25s}
+.nlinks a::after{content:'';position:absolute;left:0;bottom:-5px;height:2px;width:100%;background:var(--grad);transform:scaleX(0);transform-origin:right;transition:transform .35s cubic-bezier(.7,0,.2,1)}
+.nlinks a:hover{color:var(--ink)}
+.nlinks a:hover::after{transform:scaleX(1);transform-origin:left}
+.nright{display:flex;align-items:center;gap:14px}
+.statuspill{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--lime);border:1px solid rgba(192,255,62,.25);background:rgba(192,255,62,.06);padding:7px 13px;border-radius:99px}
+.statuspill i{width:7px;height:7px;border-radius:50%;background:var(--lime);animation:blip 1.6s ease-in-out infinite;box-shadow:0 0 10px var(--lime)}
+@keyframes blip{50%{opacity:.25;transform:scale(.7)}}
+#sndbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--glass);font-size:15px;transition:border-color .25s,transform .2s}
+#sndbtn:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:14px;padding:13px 24px;border-radius:99px;position:relative;transition:transform .2s,box-shadow .3s;will-change:transform}
+.btn-p{background:var(--grad);color:#0a0014;box-shadow:0 8px 30px rgba(139,92,255,.4)}
+.btn-p:hover{box-shadow:0 10px 44px rgba(0,229,255,.5)}
+.btn-g{border:1px solid var(--line);background:var(--glass);color:var(--ink)}
+.btn-g:hover{border-color:var(--pink)}
+</style>
+</head>
+<body>
+<style>
+/* ============ SECTION SCAFFOLD ============ */
+section{position:relative;padding:clamp(90px,12vh,150px) clamp(20px,5vw,72px);max-width:1280px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.4em;color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.kicker::before{content:'';width:34px;height:1px;background:var(--grad)}
+h2{font-size:clamp(2.1rem,5.4vw,4.2rem);font-weight:800;letter-spacing:-.03em;line-height:1.04}
+h2 .serif{font-family:var(--serif);font-style:italic;font-weight:400;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);font-size:clamp(15px,1.4vw,18px);max-width:560px;margin-top:18px;line-height:1.65}
+/* reveal system */
+[data-reveal]{opacity:0;transform:translateY(34px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1),filter .9s;transition-delay:var(--d,0s);filter:blur(6px)}
+[data-reveal="left"]{transform:translateX(-44px)}
+[data-reveal="right"]{transform:translateX(44px)}
+[data-reveal="scale"]{transform:scale(.86)}
+[data-reveal].on{opacity:1;transform:none;filter:blur(0)}
+/* line-mask title reveal */
+.mask{display:block;overflow:hidden}
+.mask .line{display:block;transform:translateY(112%);transition:transform 1s cubic-bezier(.7,0,.15,1)}
+body.loaded .mask .line{transform:translateY(0)}
+.mask .line:nth-child(2){transition-delay:.12s}
+.mask .line:nth-child(3){transition-delay:.24s}
+
+/* ============ HERO ============ */
+#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;max-width:none;padding-top:120px;overflow:hidden;perspective:1100px}
+.hero-in{max-width:1280px;margin:0 auto;width:100%;opacity:var(--ho,1);transform:rotateX(var(--rx,0)) rotateY(var(--ry,0)) translateY(var(--hy,0));transform-style:preserve-3d;transition:transform .35s ease-out}
+.hero-pill{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--ink);border:1px solid var(--line);background:var(--glass);padding:8px 16px;border-radius:99px;margin-bottom:34px;width:fit-content;backdrop-filter:blur(8px)}
+.hero-pill i{width:8px;height:8px;border-radius:50%;background:var(--pink);box-shadow:0 0 12px var(--pink);animation:blip 1.4s infinite}
+h1{font-size:clamp(3rem,9.4vw,8.8rem);font-weight:800;letter-spacing:-.045em;line-height:.97}
+h1 .serif{font-family:var(--serif);font-style:italic;font-weight:400;font-size:1.06em}
+h1 .w1{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:gradslide 5s ease infinite}
+h1 .w2{background:var(--grad2);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:gradslide 5s ease infinite reverse}
+@keyframes gradslide{50%{background-position:100% 0}}
+.hero-sub{color:var(--mut);font-size:clamp(15px,1.6vw,19px);max-width:590px;margin:30px 0 42px;line-height:1.7}
+.hero-sub b{color:var(--ink);font-weight:600}
+.hero-cta{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.hero-cta .btn{font-size:15px;padding:17px 32px}
+/* floating pet field */
+.pets{position:absolute;inset:0;pointer-events:none;z-index:-1;transform:translate3d(0,var(--pysc,0),0)}
+.pets span{position:absolute;font-size:var(--fs,44px);opacity:.5;filter:drop-shadow(0 0 18px rgba(139,92,255,.4));animation:floaty var(--fd,7s) ease-in-out infinite alternate;transform:translate3d(calc(var(--mx,0)*var(--dp,20)*1px),calc(var(--my,0)*var(--dp,20)*1px + var(--fy,0px)),0)}
+@keyframes floaty{from{margin-top:0}to{margin-top:-26px}}
+/* live response chip */
+.resp-chip{position:absolute;right:clamp(20px,5vw,72px);top:26%;max-width:330px;font-family:var(--mono);font-size:11.5px;line-height:1.7;background:rgba(10,10,26,.8);border:1px solid var(--line);border-radius:14px;padding:16px 18px;backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(139,92,255,.12);animation:floaty 6s ease-in-out infinite alternate;z-index:2}
+.resp-chip .r-h{color:var(--dim);font-size:10px;letter-spacing:.18em;margin-bottom:8px;display:flex;justify-content:space-between}
+.resp-chip .r-h b{color:var(--lime);font-weight:500}
+#respline{color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+#respimg{width:100%;height:150px;object-fit:cover;border-radius:9px;margin-top:10px;border:1px solid var(--line)}
+.scrollhint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;letter-spacing:.35em;color:var(--dim);opacity:var(--ho,1)}
+.scrollhint i{width:1px;height:44px;background:linear-gradient(var(--cyan),transparent);animation:hint 1.8s ease-in-out infinite;transform-origin:top}
+@keyframes hint{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+
+/* ============ TICKER ============ */
+.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(255,255,255,.02);overflow:hidden;padding:16px 0;position:relative;z-index:1}
+.ticker .track{display:flex;width:max-content;animation:tick 30s linear infinite}
+.ticker:hover .track{animation-play-state:paused}
+.ticker span{font-family:var(--mono);font-size:13px;letter-spacing:.28em;color:var(--mut);white-space:nowrap;padding:0 28px;display:flex;align-items:center;gap:28px}
+.ticker span::after{content:'✦';background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:11px}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* ============ JOURNEY (scroll-driven terminal) ============ */
+.j-grid{display:grid;grid-template-columns:1fr 1.05fr;gap:clamp(28px,4vw,64px);margin-top:56px}
+.j-steps{display:flex;flex-direction:column;margin-top:26px}
+.j-step{min-height:72vh;display:flex;flex-direction:column;justify-content:center;border-left:2px solid var(--line);padding:20px 28px;opacity:.26;transition:opacity .5s,border-color .5s}
+.j-step.active{opacity:1;border-color:var(--cyan)}
+.j-step b{font-family:var(--mono);font-size:11px;letter-spacing:.32em;color:var(--cyan);font-weight:500}
+.j-step h4{font-size:clamp(22px,2.6vw,34px);font-weight:800;letter-spacing:-.02em;margin:12px 0 12px}
+.j-step p{color:var(--mut);font-size:14px;line-height:1.7;max-width:380px}
+.j-pin{position:sticky;top:92px;z-index:3}
+.j-term .t-body{height:400px;overflow:hidden;transition:opacity .22s ease,transform .22s ease}
+.j-term .t-body.switching{opacity:0;transform:translateY(10px)}
+.j-caret{display:inline-block;width:9px;height:15px;background:var(--cyan);vertical-align:-2px;animation:caret 1s steps(1) infinite;box-shadow:0 0 8px var(--cyan)}
+@keyframes caret{50%{opacity:0}}
+.j-live-img{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.j-live-img img{width:100%;max-height:230px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.j-live-img span{font-size:10.5px;color:var(--dim);word-break:break-all}
+.ghostnum{position:absolute;top:4%;right:-2%;z-index:-1;font-family:var(--mono);font-weight:700;font-size:clamp(140px,24vw,320px);line-height:1;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.06);pointer-events:none;user-select:none;will-change:transform}
+#hud{position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:80;display:flex;flex-direction:column;align-items:center;gap:14px;font-family:var(--mono);pointer-events:none}
+#hudpct{writing-mode:vertical-rl;font-size:9.5px;letter-spacing:.3em;color:var(--cyan);opacity:.85}
+#huddots{display:flex;flex-direction:column;gap:9px;pointer-events:auto}
+#huddots i{width:7px;height:7px;border-radius:50%;border:1px solid rgba(255,255,255,.3);display:block;cursor:pointer;transition:all .3s}
+#huddots i:hover{border-color:var(--pink)}
+#huddots i.on{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px var(--cyan);transform:scale(1.3)}
+@media(max-width:1020px){#hud{display:none}.j-grid{grid-template-columns:1fr}.j-pin{position:relative;top:0}.j-step{min-height:52vh}.ghostnum{font-size:clamp(90px,26vw,170px)}}
+
+/* ============ STATS ============ */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:56px}
+.stat{position:relative;border:1px solid var(--line);background:var(--glass);border-radius:18px;padding:30px 26px;overflow:hidden;transition:transform .35s,border-color .35s,box-shadow .35s}
+.stat:hover{transform:translateY(-6px);border-color:rgba(0,229,255,.4);box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 40px rgba(0,229,255,.12)}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);transform:scaleX(0);transform-origin:left;transition:transform .6s cubic-bezier(.7,0,.2,1)}
+.stat:hover::before{transform:scaleX(1)}
+.stat .num{font-family:var(--mono);font-size:clamp(26px,2.6vw,38px);font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.02em}
+.stat .lbl{color:var(--mut);font-size:13px;margin-top:10px;letter-spacing:.04em}
+.stat .bar{height:4px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:18px;overflow:hidden}
+.stat .bar i{display:block;height:100%;width:var(--w,70%);background:var(--grad);border-radius:99px;transform:scaleX(0);transform-origin:left;transition:transform 1.4s cubic-bezier(.2,.7,.2,1) .3s}
+.stat.on .bar i{transform:scaleX(1)}
+
+/* ============ TERMINAL ============ */
+.termwrap{margin-top:56px;max-width:920px}
+.terminal{border:1px solid rgba(255,255,255,.14);border-radius:18px;overflow:hidden;background:#08081a;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 80px rgba(139,92,255,.14);position:relative}
+.terminal::after{content:'';position:absolute;inset:0;border-radius:18px;pointer-events:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.t-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--line)}
+.t-bar i{width:12px;height:12px;border-radius:50%}
+.t-bar i:nth-child(1){background:#ff5f57}.t-bar i:nth-child(2){background:#febc2e}.t-bar i:nth-child(3){background:#28c840}
+.t-title{margin-left:12px;font-family:var(--mono);font-size:11.5px;color:var(--dim);letter-spacing:.08em}
+.t-freq{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.2em}
+.t-body{padding:22px 20px 18px;font-family:var(--mono);font-size:13px;line-height:1.75;height:420px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.t-body::-webkit-scrollbar{width:6px}.t-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
+.tl{white-space:pre-wrap;word-break:break-word}
+.tl .cmd{color:var(--ink)}
+.tl .ps{color:var(--lime)}
+.tl .ok{color:var(--lime)}
+.tl .url{color:var(--cyan)}
+.tl .dim{color:var(--dim)}
+.tl .json{color:#d7d7f5}
+.tl .hl{color:var(--pink)}
+.tl .warn{color:var(--amber)}
+.t-in{display:flex;align-items:center;gap:9px;padding:0 20px 20px;font-family:var(--mono);font-size:13px}
+.t-in .ps{color:var(--lime)}
+#tinput{flex:1;background:none;border:0;outline:none;color:var(--ink);caret-color:var(--cyan);font-family:var(--mono);font-size:13px}
+.chiprow{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.tchip{font-family:var(--mono);font-size:11.5px;color:var(--mut);border:1px solid var(--line);background:var(--glass);padding:8px 14px;border-radius:99px;transition:all .25s}
+.tchip:hover{color:var(--ink);border-color:var(--pink);box-shadow:0 0 20px rgba(255,95,162,.25);transform:translateY(-2px)}
+.tchip b{color:var(--cyan);font-weight:500}
+</style>
+<style>
+/* ============ LIVE FEED ============ */
+.feed-top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.feedtabs{display:flex;gap:10px}
+.ftab{font-size:14px;font-weight:700;padding:12px 22px;border-radius:99px;border:1px solid var(--line);background:var(--glass);color:var(--mut);transition:all .3s}
+.ftab.on{background:var(--grad);color:#0a0014;border-color:transparent;box-shadow:0 8px 30px rgba(139,92,255,.4)}
+.ftab:not(.on):hover{color:var(--ink);border-color:var(--pink)}
+.stage{margin-top:52px;position:relative;border:1px solid rgba(255,255,255,.14);border-radius:22px;overflow:hidden;background:#08081a;box-shadow:0 40px 100px rgba(0,0,0,.55)}
+.stage-img{position:relative;aspect-ratio:16/9;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,rgba(139,92,255,.14),transparent 70%)}
+.stage-img img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s ease}
+.stage-img img.show{opacity:1;animation:kenburns 14s ease-in-out infinite alternate}
+@keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.09) translate(1.5%,-1.5%)}}
+.stage-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--dim);font-family:var(--mono);font-size:12px;letter-spacing:.2em}
+.stage-empty .pawbig{font-size:56px;animation:floaty 4s ease-in-out infinite alternate;filter:drop-shadow(0 0 24px rgba(255,95,162,.5))}
+.live-chip{position:absolute;top:18px;left:18px;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.25em;color:#fff;background:rgba(10,10,20,.7);border:1px solid rgba(255,95,162,.4);padding:8px 14px;border-radius:99px;backdrop-filter:blur(8px)}
+.live-chip i{width:8px;height:8px;border-radius:50%;background:var(--pink);box-shadow:0 0 12px var(--pink);animation:blip 1.2s infinite}
+.stage-meta{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:18px 22px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+.stage-meta b{color:var(--cyan);font-weight:500}
+.stage-meta .grow{flex:1}
+#fetchbtn{background:var(--grad);color:#0a0014;font-weight:800;font-size:14px;letter-spacing:.02em;padding:14px 28px;border-radius:99px;position:relative;overflow:hidden;transition:box-shadow .3s,transform .2s}
+#fetchbtn::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);transform:translateX(-120%);animation:sheen 3.4s ease infinite}
+@keyframes sheen{45%,100%{transform:translateX(130%)}}
+#fetchbtn:hover{box-shadow:0 10px 40px rgba(0,229,255,.45)}
+#fetchbtn:active{transform:scale(.96)}
+.autoloop{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--mut);cursor:pointer;user-select:none}
+.autoloop .sw{width:40px;height:22px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.05);position:relative;transition:all .3s}
+.autoloop .sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--dim);transition:all .3s}
+.autoloop.on .sw{border-color:var(--lime);background:rgba(192,255,62,.12)}
+.autoloop.on .sw i{left:20px;background:var(--lime);box-shadow:0 0 12px var(--lime)}
+.autoloop.on{color:var(--lime)}
+.strip{display:flex;gap:12px;margin-top:16px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.strip::-webkit-scrollbar{height:6px}.strip::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
+.strip .ph{flex:0 0 108px;aspect-ratio:1;border-radius:14px;overflow:hidden;border:1px solid var(--line);position:relative;animation:popin .5s cubic-bezier(.2,1.4,.4,1);transition:transform .3s,border-color .3s}
+.strip .ph:hover{transform:translateY(-5px) scale(1.04);border-color:var(--cyan)}
+.strip .ph img{width:100%;height:100%;object-fit:cover}
+@keyframes popin{from{transform:scale(.4);opacity:0}}
+.confetti-p{position:fixed;width:9px;height:9px;z-index:120;pointer-events:none;border-radius:2px;animation:cfly .9s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes cfly{to{transform:translate(var(--tx),var(--ty)) rotate(var(--rot));opacity:0}}
+
+/* ============ BENTO ============ */
+.bento{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px}
+.bcard{position:relative;border:1px solid var(--line);background:var(--glass);border-radius:20px;padding:30px 28px;overflow:hidden;transition:border-color .35s,box-shadow .35s;transform-style:preserve-3d;will-change:transform;backdrop-filter:blur(6px)}
+.bcard::before{content:'';position:absolute;inset:0;background:radial-gradient(400px circle at var(--gx,50%) var(--gy,50%),rgba(139,92,255,.16),transparent 60%);opacity:0;transition:opacity .4s}
+.bcard:hover::before{opacity:1}
+.bcard:hover{border-color:rgba(0,229,255,.35);box-shadow:0 30px 70px rgba(0,0,0,.4)}
+.bcard .ic{font-size:30px;display:inline-grid;place-items:center;width:58px;height:58px;border-radius:15px;background:rgba(139,92,255,.14);border:1px solid rgba(139,92,255,.28);margin-bottom:22px;transition:transform .4s}
+.bcard:hover .ic{transform:rotate(-8deg) scale(1.1)}
+.bcard h3{font-size:19px;font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
+.bcard p{color:var(--mut);font-size:13.5px;line-height:1.65}
+.bcard.big{grid-column:span 2;display:flex;flex-direction:column;justify-content:center}
+.bcard.big h3{font-size:clamp(24px,2.4vw,34px);letter-spacing:-.02em}
+.orbit{position:relative;width:120px;height:120px;margin-bottom:26px}
+.orbit .core{position:absolute;inset:38px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font-size:26px;box-shadow:0 0 40px rgba(139,92,255,.6);animation:pawpulse 3s ease-in-out infinite}
+.orbit .ring{position:absolute;inset:0;border:1px dashed rgba(255,255,255,.2);border-radius:50%;animation:spin 14s linear infinite}
+.orbit .ring i{position:absolute;top:-11px;left:50%;font-size:19px;transform:translateX(-50%)}
+.orbit .ring.r2{inset:20px;animation-duration:9s;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.codelet{margin-top:18px;font-family:var(--mono);font-size:12px;color:var(--cyan);background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);border-radius:10px;padding:12px 14px;overflow-x:auto;white-space:nowrap}
+.codelet b{color:var(--pink);font-weight:500}
+.beat{margin-top:20px;height:34px}
+.beat polyline{stroke:var(--lime);stroke-width:2;fill:none;stroke-dasharray:400;stroke-dashoffset:400;animation:beat 3s linear infinite;filter:drop-shadow(0 0 6px rgba(192,255,62,.6))}
+@keyframes beat{to{stroke-dashoffset:0}}
+.inf{font-size:44px;line-height:1;margin-top:16px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;animation:spin 8s linear infinite;display:inline-block}
+
+/* ============ CODE ============ */
+.codewrap{margin-top:52px;display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:stretch}
+.codewin{border:1px solid rgba(255,255,255,.14);border-radius:18px;overflow:hidden;background:#08081a;box-shadow:0 30px 80px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
+.tab{padding:13px 20px;font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.06em;position:relative;transition:color .25s}
+.tab.on{color:var(--ink)}
+.tab.on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--grad)}
+.tab:hover{color:var(--mut)}
+.codewin pre{flex:1;padding:22px;font-family:var(--mono);font-size:12.5px;line-height:1.8;overflow-x:auto;scrollbar-width:thin}
+.codewin pre::-webkit-scrollbar{height:6px}.codewin pre::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
+.tk-k{color:var(--pink)}.tk-s{color:var(--lime)}.tk-c{color:var(--dim);font-style:italic}.tk-f{color:var(--cyan)}.tk-n{color:var(--amber)}
+.codefoot{display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid var(--line)}
+.copybtn{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--mut);border:1px solid var(--line);padding:8px 14px;border-radius:8px;transition:all .25s}
+.copybtn:hover{color:var(--ink);border-color:var(--cyan)}
+.runbtn{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:#0a0014;background:var(--grad);padding:8px 16px;border-radius:8px;font-weight:700;transition:box-shadow .3s}
+.runbtn:hover{box-shadow:0 6px 24px rgba(0,229,255,.4)}
+#coderesp{border:1px solid var(--line);border-radius:18px;background:var(--glass);padding:24px;font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--mut);overflow-y:auto;max-height:460px;scrollbar-width:thin;white-space:pre-wrap;word-break:break-word}
+#coderesp .ok{color:var(--lime)}#coderesp .url{color:var(--cyan)}#coderesp .dim{color:var(--dim)}
+
+/* ============ SPECS ============ */
+.specs{margin-top:56px;border-top:1px solid var(--line)}
+.spec{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:center;padding:24px 6px;border-bottom:1px solid var(--line);transition:background .3s,padding-left .3s}
+.spec:hover{background:rgba(255,255,255,.025);padding-left:18px}
+.spec .k{font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase}
+.spec .v{font-size:clamp(16px,1.8vw,22px);font-weight:700;letter-spacing:-.01em}
+.spec .v .serif{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--cyan)}
+.spec .bar{height:3px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:12px;overflow:hidden}
+.spec .bar i{display:block;height:100%;width:var(--w,80%);background:var(--grad);transform:scaleX(0);transform-origin:left;transition:transform 1.2s cubic-bezier(.2,.7,.2,1) .2s}
+.spec.on .bar i{transform:scaleX(1)}
+
+/* ============ TESTIMONIALS ============ */
+#love .t-row{overflow:hidden;margin-top:26px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.t-track{display:flex;gap:16px;width:max-content;animation:tick 44s linear infinite}
+.t-row:nth-child(2) .t-track{animation-direction:reverse;animation-duration:52s}
+.t-row:hover .t-track{animation-play-state:paused}
+.tcard{flex:0 0 340px;border:1px solid var(--line);background:var(--glass);border-radius:16px;padding:24px;transition:border-color .3s,transform .3s}
+.tcard:hover{border-color:rgba(255,95,162,.4);transform:translateY(-4px)}
+.tcard p{font-size:14px;line-height:1.65;color:var(--ink)}
+.tcard p em{font-family:var(--serif);font-style:italic;color:var(--cyan)}
+.tcard .who{margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.08em}
+.tcard .who b{color:var(--pink);font-weight:500}
+
+/* ============ CTA ============ */
+#cta{text-align:center;padding-bottom:clamp(120px,16vh,190px)}
+#cta h2{font-size:clamp(3rem,10vw,9rem);letter-spacing:-.04em}
+#cta .serif{font-family:var(--serif);font-style:italic;font-weight:400;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:gradslide 4s ease infinite}
+.cta-orb{position:relative;display:inline-block;margin-top:48px}
+.cta-orb .ring{position:absolute;inset:-26px;border:1px dashed rgba(255,255,255,.25);border-radius:50%;animation:spin 16s linear infinite;pointer-events:none}
+.cta-orb .ring i{position:absolute;top:-12px;left:50%;font-size:20px}
+.cta-orb .btn{font-size:17px;padding:22px 46px;border-radius:99px}
+.cta-note{margin-top:26px;font-family:var(--mono);font-size:11.5px;color:var(--dim);letter-spacing:.15em}
+.cta-note b{color:var(--lime);font-weight:500}
+
+/* ============ FOOTER ============ */
+footer{border-top:1px solid var(--line);background:rgba(5,5,13,.7);position:relative;overflow:hidden}
+.foot-in{max-width:1280px;margin:0 auto;padding:70px clamp(20px,5vw,72px) 30px;position:relative;z-index:1}
+.foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
+.foot-grid h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;margin-bottom:18px}
+.foot-grid a{display:block;color:var(--mut);font-size:13.5px;padding:5px 0;transition:color .25s,padding-left .25s}
+.foot-grid a:hover{color:var(--cyan);padding-left:6px}
+.foot-grid .fbrand p{color:var(--mut);font-size:13.5px;line-height:1.7;max-width:280px;margin-top:16px}
+.foot-big{font-size:clamp(64px,13vw,190px);font-weight:800;letter-spacing:-.03em;line-height:1;text-align:center;margin:40px 0 10px;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.14);user-select:none;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 40px rgba(139,92,255,.15))}
+.foot-base{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:26px;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.08em}
+#totop{color:var(--mut);transition:color .25s}
+#totop:hover{color:var(--cyan)}
+
+/* ============ RESPONSIVE / MOTION ============ */
+@media(max-width:1020px){.stats{grid-template-columns:repeat(2,1fr)}.bento{grid-template-columns:repeat(2,1fr)}.bcard.big{grid-column:span 2}.codewrap{grid-template-columns:1fr}.resp-chip{display:none}.foot-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:680px){.nlinks{display:none}.statuspill span{display:none}.stats{grid-template-columns:1fr}.bento{grid-template-columns:1fr}.bcard.big{grid-column:span 1}.spec{grid-template-columns:1fr;gap:6px}.foot-grid{grid-template-columns:1fr}.stage-meta{gap:10px}.stage-meta .grow{display:none}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.2s!important}
+  .ticker .track,.t-track{animation:none!important}
+  [data-reveal]{opacity:1;transform:none;filter:none}
+  .mask .line{transform:none}
+}
+</style>
+<div class="aurora" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+<div class="gridbg" aria-hidden="true"></div>
+<div class="noise" aria-hidden="true"></div>
+
+<div id="boot" aria-hidden="true">
+  <div class="bootbox">
+    <h4>PAWSTACK CLOUD — BOOT SEQUENCE</h4>
+    <div id="bootlog"></div>
+    <div id="bootbar"><i id="bootfill"></i></div>
+    <div id="bootpct">0%</div>
+  </div>
+</div>
+
+<div id="cur-dot" aria-hidden="true"></div>
+<div id="cur-ring" aria-hidden="true"></div>
+<div id="progress" aria-hidden="true"></div>
+
+<div id="hud" aria-hidden="true">
+  <div id="hudpct">000%</div>
+  <div id="huddots"></div>
+</div>
+
+<nav id="nav">
+  <a class="logo" href="#hero" data-hover><span class="paw">🐾</span>Paw<em>stack</em></a>
+  <div class="nlinks">
+    <a href="#terminal">Terminal</a>
+    <a href="#feed">Live Feed</a>
+    <a href="#docs">Docs</a>
+    <a href="#specs">Specs</a>
+  </div>
+  <div class="nright">
+    <div class="statuspill"><i></i><span>ALL SYSTEMS NOMINAL</span></div>
+    <button id="sndbtn" data-hover title="Toggle sound" aria-label="Toggle sound">🔇</button>
+    <a class="btn btn-p" href="#cta" data-hover style="padding:11px 20px;font-size:13px">Get API</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <div class="pets" id="pets" aria-hidden="true"></div>
+  <div class="hero-in" id="heroin">
+    <div class="hero-pill" data-reveal><i></i>PAWSTACK CLOUD · NOW LIVE · v2.6</div>
+    <h1>
+      <span class="mask"><span class="line">THE INTERNET IS</span></span>
+      <span class="mask"><span class="line">FULL OF <span class="serif w1">dogs</span>.</span></span>
+      <span class="mask"><span class="line">AND <span class="serif w2">cats</span>.</span></span>
+    </h1>
+    <p class="hero-sub" data-reveal style="--d:.1s">Pawstack is the <b>pet-intelligence layer</b> of the web. Two endpoints. Zero auth. A universe of faces, streamed to your browser at the speed of light — <b>no SDK, no key, no excuses.</b></p>
+    <div class="hero-cta" data-reveal style="--d:.2s">
+      <a class="btn btn-p mag" href="#terminal" data-hover>▶ Open the terminal</a>
+      <a class="btn btn-g mag" href="#docs" data-hover>Read the docs</a>
+    </div>
+  </div>
+  <div class="resp-chip" id="respchip" data-reveal style="--d:.35s">
+    <div class="r-h"><span>LIVE RESPONSE</span><b>200 OK</b></div>
+    <span id="respline">warming up…</span>
+    <img id="respimg" alt="Live pet fetch">
+  </div>
+  <div class="scrollhint" aria-hidden="true"><span>SCROLL</span><i></i></div>
+</section>
+
+<!-- ============ TICKER ============ -->
+<div class="ticker" aria-hidden="true">
+  <div class="track" id="tick1"></div>
+</div>
+
+<!-- ============ JOURNEY (SCROLL-DRIVEN TERMINAL) ============ -->
+<section id="journey">
+  <div class="kicker" data-reveal>PROLOGUE — INSIDE A REQUEST</div>
+  <h2 data-reveal style="--d:.08s">Scroll a request <span class="serif">into existence.</span></h2>
+  <p class="sub" data-reveal style="--d:.16s">The terminal is pinned. The steps scroll. Cross each one and it retypes itself — four stops between your browser and a real face.</p>
+  <div class="j-grid">
+    <div class="j-steps" id="jsteps">
+      <div class="j-step" data-step="0"><b>STOP 01</b><h4>The call.</h4><p>A plain GET to a public endpoint. No headers, no tokens, no ceremony — exactly like browsing the web, minus the clicking.</p></div>
+      <div class="j-step" data-step="1"><b>STOP 02</b><h4>The reply.</h4><p>Two keys, same shape, every single call. Schema version one, guaranteed forever. Nothing to map, nothing to break.</p></div>
+      <div class="j-step" data-step="2"><b>STOP 03</b><h4>The edge.</h4><p>The face lives on a CDN closer to you than your DNS resolver. P95 stays in the single-digit tens, worldwide.</p></div>
+      <div class="j-step" data-step="3"><b>STOP 04</b><h4>The face.</h4><p>Not a mock — a live fetch, executed the instant this step reaches the middle of your screen.</p></div>
+    </div>
+    <div class="j-right">
+      <div class="j-pin">
+        <div class="terminal j-term">
+          <div class="t-bar"><i></i><i></i><i></i><span class="t-title">pawstack@cloud : /journey — scroll to drive</span><span class="t-freq" id="jstep-ind">STEP 1/4</span></div>
+          <div class="t-body j-body" id="j-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STATS ============ -->
+<section id="stats-sec">
+  <div class="kicker" data-reveal>01 — BY THE NUMBERS</div>
+  <h2 data-reveal style="--d:.08s">Pet data, <span class="serif">industrial scale.</span></h2>
+  <p class="sub" data-reveal style="--d:.16s">Two endpoints that have been quietly doing the internet's animal facework since before it was cool. The numbers are not rounding up.</p>
+  <div class="stats">
+    <div class="stat" data-reveal style="--d:.05s"><div class="num"><span data-count="8412906">0</span>+</div><div class="lbl">images served & counting</div><div class="bar"><i style="--w:96%"></i></div></div>
+    <div class="stat" data-reveal style="--d:.15s"><div class="num"><span data-count="11">0</span> ms</div><div class="lbl">median response, edge-cached</div><div class="bar"><i style="--w:84%"></i></div></div>
+    <div class="stat" data-reveal style="--d:.25s"><div class="num"><span data-count="99.99" data-dec="2">0</span>%</div><div class="lbl">uptime, measured not vibes</div><div class="bar"><i style="--w:99%"></i></div></div>
+    <div class="stat" data-reveal style="--d:.35s"><div class="num"><span data-count="0">0</span></div><div class="lbl">auth tokens. seriously. zero.</div><div class="bar"><i style="--w:40%"></i></div></div>
+  </div>
+</section>
+
+<!-- ============ TERMINAL ============ -->
+<section id="terminal">
+  <div class="kicker" data-reveal>02 — THE COMMAND LAYER</div>
+  <h2 data-reveal style="--d:.08s">A real shell. <span class="serif">For a real API.</span></h2>
+  <p class="sub" data-reveal style="--d:.16s">The endpoints speak plain HTTP — this terminal speaks them fluently. <b style="color:var(--ink)">It's interactive:</b> click inside and type. Every <span style="font-family:var(--mono);color:var(--cyan)">dog</span> and <span style="font-family:var(--mono);color:var(--cyan)">cat</span> command below makes a live network request.</p>
+  <div class="termwrap" data-reveal style="--d:.24s">
+    <div class="terminal">
+      <div class="t-bar"><i></i><i></i><i></i><span class="t-title">pawstack@cloud : ~ — paw shell</span><span class="t-freq">60Hz</span></div>
+      <div class="t-body" id="t-body"></div>
+      <div class="t-in"><span class="ps">paw@stack:~$</span><input id="tinput" type="text" spellcheck="false" autocomplete="off" aria-label="Terminal input"></div>
+    </div>
+    <div class="chiprow" data-reveal style="--d:.32s">
+      <button class="tchip" data-cmd="help" data-hover>try: <b>help</b></button>
+      <button class="tchip" data-cmd="dog" data-hover><b>dog</b></button>
+      <button class="tchip" data-cmd="cat" data-hover><b>cat</b></button>
+      <button class="tchip" data-cmd="confetti" data-hover><b>confetti</b></button>
+      <button class="tchip" data-cmd="matrix" data-hover><b>matrix</b></button>
+      <button class="tchip" data-cmd="whoami" data-hover><b>whoami</b></button>
+      <button class="tchip" data-cmd="sound" data-hover><b>sound on/off</b></button>
+    </div>
+  </div>
+</section>
+<!-- ============ LIVE FEED ============ -->
+<section id="feed">
+  <div class="feed-top">
+    <div>
+      <div class="kicker" data-reveal>03 — LIVE FEED</div>
+      <h2 data-reveal style="--d:.08s">Watch it <span class="serif">think.</span></h2>
+      <p class="sub" data-reveal style="--d:.16s">Every image below is pulled from the endpoint <b style="color:var(--ink)">at the moment you click</b>. Latency is measured on your device, in your browser, live.</p>
+    </div>
+    <div class="feedtabs" data-reveal style="--d:.2s">
+      <button class="ftab on" data-pet="dog" data-hover id="tab-dog">🐶 Dogs</button>
+      <button class="ftab" data-pet="cat" data-hover id="tab-cat">🐱 Cats</button>
+    </div>
+  </div>
+  <div class="stage" data-reveal style="--d:.28s">
+    <div class="stage-img">
+      <div class="stage-empty" id="stageempty"><span class="pawbig">🐾</span><span>AWAITING FIRST FETCH</span></div>
+      <img id="stageimg" alt="Live fetched pet">
+    </div>
+    <div class="live-chip"><i></i>LIVE</div>
+    <div class="stage-meta">
+      <span>SOURCE: <b id="srcname">—</b></span>
+      <span>LATENCY: <b id="lat">—</b></span>
+      <span>SESSION: <b id="sess">0</b> IMAGES</span>
+      <span class="grow"></span>
+      <label class="autoloop" id="loop" data-hover><span class="sw"><i></i></span>AUTO-LOOP</label>
+      <button id="fetchbtn" data-hover>FETCH ANOTHER ✦</button>
+    </div>
+  </div>
+  <div class="strip" id="strip" data-reveal style="--d:.34s" aria-label="Recent images"></div>
+</section>
+
+<!-- ============ BENTO ============ -->
+<section id="why">
+  <div class="kicker" data-reveal>04 — WHY PAWSTACK</div>
+  <h2 data-reveal style="--d:.08s">Built like a <span class="serif">machine.</span> Feels like a petting session.</h2>
+  <div class="bento">
+    <div class="bcard big tilt" data-reveal>
+      <div class="orbit" aria-hidden="true"><span class="ring"><i>🐶</i></span><span class="ring r2"><i>🐱</i></span><span class="core">🐾</span></div>
+      <h3>Zero auth. Zero config. Zero regrets.</h3>
+      <p>No signup form. No API key dashboard. No rate-limit anxiety. You point your browser at an endpoint and a face appears. That's the entire onboarding flow — and it takes about two seconds, most of which is typing the URL.</p>
+      <div class="codelet" style="margin-top:22px">$ curl https://dog.ceo/api/breeds/image/random<br>{ "message": "https://images.dog.ceo/…/n02088094_1003.jpg", "status": "200" }</div>
+    </div>
+    <div class="bcard tilt" data-reveal style="--d:.08s"><span class="ic">⚡</span><h3>Sub-20ms edge</h3><p>Median 11ms worldwide. The image lands before your thumb finishes the tap.</p></div>
+    <div class="bcard tilt" data-reveal style="--d:.16s"><span class="ic">🌍</span><h3>CORS: open</h3><p>Call it from anywhere — browser, iframe, PWA, game engine, that thing on the fridge.</p></div>
+    <div class="bcard tilt" data-reveal style="--d:.24s"><span class="ic">🧬</span><h3>Every breed, every face</h3><p>Hundreds of breeds on the dog side. Endless chaos on the cat side. Both endpoints rotate, so no two fetches match.</p></div>
+    <div class="bcard tilt" data-reveal style="--d:.32s"><span class="ic">📦</span><h3>One-liner SDK</h3><p>The whole client is one line of JavaScript. Yes, one. We count characters for a living.</p>
+      <div class="codelet">const url = await <b>fetch</b>('https://dog.ceo/api/breeds/image/random').then(r=>r.json());</div></div>
+    <div class="bcard tilt" data-reveal style="--d:.4s"><span class="ic">💚</span><h3>99.99% uptime</h3><p>Monitored, measured, and graphed. The heartbeat below is our production pulse — literally.</p>
+      <svg class="beat" viewBox="0 0 300 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,17 40,17 52,17 58,4 64,30 70,17 120,17 132,17 138,4 144,30 150,17 210,17 222,17 228,4 234,30 240,17 300,17"/></svg></div>
+    <div class="bcard tilt" data-reveal style="--d:.48s"><span class="ic">∞</span><h3>Free forever</h3><p>The endpoints are free, the faces are free, and the delight is non-refundable.</p><span class="inf">∞</span></div>
+  </div>
+</section>
+
+<!-- ============ DOCS / CODE ============ -->
+<section id="docs">
+  <div class="kicker" data-reveal>05 — DEVELOPER EXPERIENCE</div>
+  <h2 data-reveal style="--d:.08s">Docs, <span class="serif">minus the fluff.</span></h2>
+  <p class="sub" data-reveal style="--d:.16s">Three languages, one endpoint, no surprises. The <b style="color:var(--ink)">▶ Run it</b> button below executes a real request and streams the raw response — watch the latency, not the landing page.</p>
+  <div class="codewrap" data-reveal style="--d:.24s">
+    <div class="codewin">
+      <div class="tabs">
+        <button class="tab on" data-tab="curl" data-hover>cURL</button>
+        <button class="tab" data-tab="js" data-hover>JAVASCRIPT</button>
+        <button class="tab" data-tab="py" data-hover>PYTHON</button>
+      </div>
+      <pre id="code-curl"><span class="tk-c"># one command. one dog. no ceremony.</span>
+<span class="tk-f">curl</span> https://dog.ceo/api/breeds/image/random
+
+<span class="tk-c"># response — a random dog, every time:</span>
+{
+  <span class="tk-s">"message"</span>: <span class="tk-s">"https://images.dog.ceo/breeds/hound-afghan/n02088094_1003.jpg"</span>,
+  <span class="tk-s">"status"</span>: <span class="tk-s">"200"</span>
+}</pre>
+      <pre id="code-js" hidden><span class="tk-c">// the entire Pawstack client, in one statement</span>
+<span class="tk-k">async function</span> <span class="tk-f">fetchDog</span>() {
+  <span class="tk-k">const</span> r = <span class="tk-k">await</span> <span class="tk-f">fetch</span>(<span class="tk-s">'https://dog.ceo/api/breeds/image/random'</span>);
+  <span class="tk-k">const</span> j = <span class="tk-k">await</span> r.<span class="tk-f">json</span>();
+  <span class="tk-k">return</span> j.message; <span class="tk-c">// the face. you're welcome.</span>
+}
+
+<span class="tk-c">// cats are the same call, different endpoint</span>
+<span class="tk-f">fetch</span>(<span class="tk-s">'https://cat.ceo/api/breeds/image/random'</span>);</pre>
+      <pre id="code-py" hidden><span class="tk-c"># python: stdlib only, no pip install</span>
+<span class="tk-k">import</span> requests
+
+r = requests.<span class="tk-f">get</span>(<span class="tk-s">"https://dog.ceo/api/breeds/image/random"</span>)
+face = r.<span class="tk-f">json</span>()[<span class="tk-s">"message"</span>]
+<span class="tk-f">print</span>(<span class="tk-s">f"today's dog: {face}"</span>)</pre>
+      <div class="codefoot">
+        <button class="copybtn" id="copybtn" data-hover>⧉ COPY</button>
+        <button class="runbtn" id="runbtn" data-hover>▶ RUN IT</button>
+      </div>
+    </div>
+    <div id="coderesp" aria-live="polite"><span class="dim">// response stream — press RUN IT to execute a live request</span></div>
+  </div>
+</section>
+
+<!-- ============ SPECS ============ -->
+<section id="specs">
+  <div class="kicker" data-reveal>06 — UNDER THE HOOD</div>
+  <h2 data-reveal style="--d:.08s">The spec sheet <span class="serif">you didn't know you wanted.</span></h2>
+  <div class="specs">
+    <div class="spec" data-reveal><div class="k">Endpoints</div><div><div class="v">2 <span class="serif">— and they cover the whole animal kingdom</span></div><div class="bar"><i style="--w:60%"></i></div></div></div>
+    <div class="spec" data-reveal style="--d:.06s"><div class="k">Protocol</div><div><div class="v">HTTP / HTTPS, plain JSON</div><div class="bar"><i style="--w:88%"></i></div></div></div>
+    <div class="spec" data-reveal style="--d:.12s"><div class="k">Authentication</div><div><div class="v">None. <span class="serif">Seriously. None at all.</span></div><div class="bar"><i style="--w:15%"></i></div></div></div>
+    <div class="spec" data-reveal style="--d:.18s"><div class="k">Median latency</div><div><div class="v">11 ms</div><div class="bar"><i style="--w:92%"></i></div></div></div>
+    <div class="spec" data-reveal style="--d:.24s"><div class="k">Availability</div><div><div class="v">99.99% <span class="serif">— the last outage was a leap second</span></div><div class="bar"><i style="--w:97%"></i></div></div></div>
+    <div class="spec" data-reveal style="--d:.3s"><div class="k">Payload weight</div><div><div class="v">0.0 MB <span class="serif">(it's endpoints, not a framework)</span></div><div class="bar"><i style="--w:8%"></i></div></div></div>
+    <div class="spec" data-reveal style="--d:.36s"><div class="k">Licensing</div><div><div class="v">Free forever, MIT-spirited</div><div class="bar"><i style="--w:100%"></i></div></div></div>
+  </div>
+</section>
+<!-- ============ TESTIMONIALS ============ -->
+<section id="love">
+  <div class="kicker" data-reveal>07 — WORD ON THE STREET</div>
+  <h2 data-reveal style="--d:.08s">Loved by humans. <span class="serif">Adored by dogs.</span></h2>
+  <div class="t-row" data-reveal style="--d:.16s"><div class="t-track" id="trow1"></div></div>
+  <div class="t-row" data-reveal style="--d:.24s"><div class="t-track" id="trow2"></div></div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section id="cta">
+  <h2>
+    <span class="mask"><span class="line">START</span></span>
+    <span class="mask"><span class="line"><span class="serif">fetching</span>.</span></span>
+  </h2>
+  <div class="cta-orb" data-reveal="scale" style="--d:.2s">
+    <span class="ring" aria-hidden="true"><i>🐶</i></span>
+    <a class="btn btn-p mag" href="#terminal" data-hover>Get your API key →</a>
+  </div>
+  <div class="cta-note" data-reveal style="--d:.3s">KEY: <b>0000</b> — YOU'LL NEVER USE IT</div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="foot-in">
+    <div class="foot-grid">
+      <div class="fbrand">
+        <a class="logo" href="#hero" data-hover><span class="paw">🐾</span>Paw<em>stack</em></a>
+        <p>The pet-intelligence layer of the web. Two endpoints, zero auth, and a universe of faces on call.</p>
+      </div>
+      <div>
+        <h5>Endpoints</h5>
+        <a href="https://dog.ceo/api/breeds/image/random" target="_blank" rel="noopener">dog.ceo / breeds/image/random</a>
+        <a href="https://cat.ceo/api/breeds/image/random" target="_blank" rel="noopener">cat.ceo / breeds/image/random</a>
+        <a href="#docs">cURL examples</a>
+        <a href="#docs">JavaScript SDK (1 line)</a>
+      </div>
+      <div>
+        <h5>Company</h5>
+        <a href="#stats-sec">Status</a>
+        <a href="#specs">Spec sheet</a>
+        <a href="#why">Why Pawstack</a>
+        <a href="#love">Wall of love</a>
+      </div>
+      <div>
+        <h5>Fine print</h5>
+        <a href="#journey">Request journey</a>
+        <a href="#terminal">Open terminal</a>
+        <a href="#feed">Live feed</a>
+        <a href="#hero">Back to top ↑</a>
+      </div>
+    </div>
+    <div class="foot-big" aria-hidden="true">PAWSTACK</div>
+    <div class="foot-base">
+      <span>© <span id="yr">2026</span> PAWSTACK LABS — MADE WITH 🐾 AND ZERO AUTH</span>
+      <span>DOG.CEO · CAT.CEO · EST. FOREVER</span>
+      <button id="totop" data-hover>↑ TOP</button>
+    </div>
+  </div>
+</footer>
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FINE=matchMedia('(pointer: fine)').matches;
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+/* ===== SOUND (WebAudio blips) ===== */
+let AC=null, soundOn=localStorage.getItem('ps-sound')==='1';
+const sndbtn=$('#sndbtn');
+function blip(f=560,d=.06,type='square',g=.035){
+  if(!soundOn)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),v=AC.createGain();
+    o.type=type;o.frequency.value=f;
+    v.gain.setValueAtTime(g,AC.currentTime);
+    v.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);
+    o.connect(v).connect(AC.destination);o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+function sndUp(){blip(660,.05)} function sndDn(){blip(320,.05)}
+function sndFetch(){blip(520,.045,'triangle',.03);setTimeout(()=>blip(880,.07,'triangle',.03),70)}
+function sndErr(){blip(180,.14,'sawtooth',.04)}
+function setSound(on){soundOn=on;localStorage.setItem('ps-sound',on?'1':'0');sndbtn.textContent=on?'🔊':'🔇';if(on)blip(700,.06);}
+sndbtn.textContent=soundOn?'🔊':'🔇';
+sndbtn.addEventListener('click',()=>{setSound(!soundOn);blip(880,.05);});
+
+/* ===== PRELOADER BOOT ===== */
+const bootLog=$('#bootlog'),bootFill=$('#bootfill'),bootPct=$('#bootpct');
+const BOOT=[
+ ['mounting /dev/animals …','ok',9],
+ ['loading pixel manifest: 4,096 faces','ok',27],
+ ['warming paws (12.0 ms)','ok',44],
+ ['handshake → dog.ceo','200 OK',63],
+ ['handshake → cat.ceo','200 OK',81],
+ ['calibrating cuteness to 100%','ok',96],
+ ['ready. fetch at will.','ready',100]
+];
+(async()=>{
+  for(const [msg,res,pct] of BOOT){
+    await new Promise(r=>setTimeout(r,RM?40:rand(140,320)));
+    bootLog.innerHTML+=`<span class="dim">›</span> ${msg} <b>[${res}]</b>\n`;
+    bootFill.style.width=pct+'%';bootPct.textContent=pct+'%';
+    blip(440+pct*6,.03,'sine',.02);
+  }
+  await new Promise(r=>setTimeout(r,350));
+  document.body.classList.add('loaded');
+  sndUp();
+  term.boot();
+})();
+
+/* ===== CURSOR + SPARK TRAIL ===== */
+const dot=$('#cur-dot'),ring=$('#cur-ring');
+let mx=innerWidth/2,my=innerHeight/2,rx2=mx,ry2=my;
+if(FINE&&!RM){
+  document.body.classList.add('cursor-on');
+  addEventListener('mousemove',e=>{
+    mx=e.clientX;my=e.clientY;
+    dot.style.transform=`translate(${mx-3.5}px,${my-3.5}px)`;
+    if(Math.random()<.5)spark(mx,my);
+  });
+  (function loop(){rx2+=(mx-rx2)*.16;ry2+=(my-ry2)*.16;ring.style.transform=`translate(${rx2-17}px,${ry2-17}px)`;requestAnimationFrame(loop)})();
+  $$('a,button,input,.ftab,.tchip,.strip .ph').forEach(el=>{
+    el.addEventListener('mouseenter',()=>ring.classList.add('hot'));
+    el.addEventListener('mouseleave',()=>ring.classList.remove('hot'));
+  });
+}
+const SPARKCOLS=['#ff5fa2','#8b5cff','#00e5ff','#c0ff3e','#ffb43a'];
+let sparks=0;
+function spark(x,y){
+  if(sparks>60||RM)return;sparks++;
+  const s=document.createElement('div');s.className='spark';
+  s.style.left=x+'px';s.style.top=y+'px';s.style.background=pick(SPARKCOLS);
+  s.style.setProperty('--sx',rand(-26,26)+'px');s.style.setProperty('--sy',rand(-26,26)+'px');
+  document.body.appendChild(s);
+  s.addEventListener('animationend',()=>{s.remove();sparks--;});
+}
+
+/* ===== SCROLL ENGINE (progress · nav · hud · parallax · velocity) ===== */
+const prog=$('#progress'),nav=$('#nav');
+const heroSec=$('#hero'),heroInEl=$('#heroin'),petsWrap=$('#pets');
+const hudPct=$('#hudpct'),huddots=$('#huddots');
+const HSEC=['hero','journey','stats-sec','terminal','feed','why','docs','specs','love','cta'].map(id=>document.getElementById(id)).filter(Boolean);
+HSEC.forEach(s=>{const d=document.createElement('i');d.title=s.id;d.addEventListener('click',()=>s.scrollIntoView({behavior:'smooth'}));huddots.appendChild(d);});
+const tick1=$('#tick1'),trow1=$('#trow1'),trow2=$('#trow2');
+let paraEls=[],velEls=[],lastY=scrollY,vel=0;
+function frame(){
+  const h=document.documentElement,p=h.scrollTop/Math.max(1,h.scrollHeight-h.clientHeight),y=h.scrollTop;
+  prog.style.width=(p*100)+'%';
+  nav.classList.toggle('scrolled',y>40);
+  hudPct.textContent=String(Math.round(p*100)).padStart(3,'0')+'%';
+  let ai=0;
+  for(let i=0;i<HSEC.length;i++){if(HSEC[i].getBoundingClientRect().top<=innerHeight*.5)ai=i;}
+  const dk=huddots.children;
+  for(let i=0;i<dk.length;i++)dk[i].classList.toggle('on',i===ai);
+  if(RM)return;
+  vel+=(y-lastY-vel)*.28;lastY=y;
+  if(y<innerHeight*1.2){
+    heroSec.style.setProperty('--ho',String(Math.max(0,1-y/(innerHeight*.9))));
+    heroInEl.style.setProperty('--hy',(y*.3).toFixed(1)+'px');
+    petsWrap.style.setProperty('--pysc',(y*.45).toFixed(1)+'px');
+  }
+  for(const o of paraEls){
+    const r=o.el.getBoundingClientRect();
+    if(r.top>innerHeight*1.3||r.bottom<-innerHeight*.3)continue;
+    o.el.style.transform='translate3d(0,'+((r.top+r.height/2-innerHeight/2)*o.sp).toFixed(1)+'px,0)';
+  }
+  const sk=Math.max(-7,Math.min(7,-vel*.04));
+  for(const el of velEls){
+    const ok=el.tagName==='H1'?document.body.classList.contains('loaded'):el.classList.contains('on');
+    if(ok&&Math.abs(sk)>.15)el.style.transform='skewX('+sk.toFixed(2)+'deg)';
+    else if(el.style.transform)el.style.transform='';
+  }
+  tick1.style.animationDelay=(-y*.0016)+'s';
+  trow1.style.animationDelay=(-y*.001)+'s';
+  trow2.style.animationDelay=(y*.001)+'s';
+}
+(function loop(){frame();requestAnimationFrame(loop);})();
+
+/* ===== REVEAL OBSERVER ===== */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target);}
+}),{threshold:.18});
+$$('[data-reveal],.stat,.spec').forEach(el=>io.observe(el));
+
+/* ===== COUNTERS ===== */
+const cio=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;cio.unobserve(e.target);
+  const el=e.target,end=parseFloat(el.dataset.count),dec=parseInt(el.dataset.dec||0),t0=performance.now(),dur=1600;
+  (function tick(t){
+    const p=Math.min(1,(t-t0)/dur),v=end*(1-Math.pow(1-p,4));
+    el.textContent=dec?v.toFixed(dec):Math.round(v).toLocaleString('en-US');
+    if(p<1)requestAnimationFrame(tick);
+  })(t0);
+}),{threshold:.6});
+$$('[data-count]').forEach(el=>cio.observe(el));
+
+/* ===== HERO TILT + PET FIELD ===== */
+const PETS=['🐶','🐱','🐕','🐈','🦴','🐾','🐺','🐈‍⬛','🐩','🦝','🐇','🐹'];
+const petsEl=$('#pets');
+PETS.forEach((p,i)=>{
+  const s=document.createElement('span');s.textContent=p;
+  s.style.left=rand(3,95)+'%';s.style.top=rand(8,92)+'%';
+  s.style.setProperty('--fs',rand(26,58)+'px');
+  s.style.setProperty('--fd',rand(4,9)+'s');
+  s.style.setProperty('--dp',rand(8,34).toFixed(0));
+  s.style.animationDelay=rand(0,4)+'s';
+  s.style.opacity=rand(.25,.55).toFixed(2);
+  petsEl.appendChild(s);
+});
+const heroin=$('#heroin');
+if(FINE&&!RM){
+  $('#hero').addEventListener('mousemove',e=>{
+    const r=$('#hero').getBoundingClientRect(),
+      nx=(e.clientX-r.left)/r.width-.5,ny=(e.clientY-r.top)/r.height-.5;
+    heroin.style.setProperty('--ry',(nx*5)+'deg');
+    heroin.style.setProperty('--rx',(-ny*4)+'deg');
+    petsEl.style.setProperty('--mx',nx.toFixed(3));
+    petsEl.style.setProperty('--my',ny.toFixed(3));
+  });
+  $('#hero').addEventListener('mouseleave',()=>{
+    heroin.style.setProperty('--ry','0deg');heroin.style.setProperty('--rx','0deg');
+    petsEl.style.setProperty('--mx','0');petsEl.style.setProperty('--my','0');
+  });
+}
+
+/* ===== TILT CARDS + SPOTLIGHT ===== */
+if(FINE&&!RM)$$('.tilt').forEach(c=>{
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect(),
+      x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+    c.style.transform=`perspective(900px) rotateX(${(y-.5)*-9}deg) rotateY(${(x-.5)*9}deg) translateY(-4px)`;
+    c.style.setProperty('--gx',(x*100)+'%');c.style.setProperty('--gy',(y*100)+'%');
+  });
+  c.addEventListener('mouseleave',()=>{c.style.transform='';});
+});
+
+/* ===== MAGNETIC BUTTONS ===== */
+if(FINE&&!RM)$$('.mag').forEach(b=>{
+  b.addEventListener('mousemove',e=>{
+    const r=b.getBoundingClientRect();
+    b.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.28}px,${(e.clientY-r.top-r.height/2)*.28}px)`;
+  });
+  b.addEventListener('mouseleave',()=>{b.style.transform='';});
+});
+
+/* ===== TICKERS ===== */
+function fillTicker(el,items,rep=4){
+  el.innerHTML=Array(rep).fill(items.map(t=>`<span>${t}</span>`).join('')).join('');
+}
+fillTicker($('#tick1'),['DOG.CEO','CAT.CEO','100% FREE','NO API KEY','CORS: OPEN','99.99% UPTIME','∞ IMAGES','11MS LATENCY','ZERO AUTH','TWO ENDPOINTS']);
+const QUOTES=[
+ ['“We deleted our pet-content backend. It was 40k lines. The endpoint was 1.”','@lena_dev','CTO, DoggoCorp'],
+ ['“Our users spend 41 minutes a day on the feed. HR is thrilled.”','@m_kim','PM, Catnip Systems'],
+ ['“I have merged more PRs named after dog breeds than I can count.”','@sarahships','Staff Eng, Fetchworks'],
+ ['“It’s the only dependency we trust with our brand image.”','@tomasz','Founder, Barkstack'],
+ ['“My demo now ends with a cat. Investors love it. Nobody knows why.”','@priya','CEO, Whiskerware'],
+ ['“Zero config means zero tickets. Ops sent a thank-you card.”','@dmitri','SRE, Pawscale'],
+ ['“We built a whole landing page around one curl command.”','@nina','Designer, Snoutly'],
+ ['“The dog images make our error pages the best part of the product.”','@kofi','Eng, Howl.io'],
+ ['“Cat latency was faster than our database. The DB is furious.”','@ana','Backend, Mittenscale'],
+ ['“Onboarding time: “what’s the API key?” “what key?” “oh, none.””','@rui','DevRel, Purrform']
+];
+const tq=(q)=>`<div class="tcard"><p>${q[0]}</p><div class="who"><b>${q[1]}</b> — ${q[2]}</div></div>`;
+fillTicker($('#trow1'),QUOTES.slice(0,5).map(t=>tq(t)),2);
+fillTicker($('#trow2'),QUOTES.slice(5).map(t=>tq(t)),2);
+
+/* ===== GHOST NUMBERS (parallax) ===== */
+$$('section .kicker').forEach(k=>{
+  const m=k.textContent.match(/^(\d{2})/);if(!m)return;
+  const g=document.createElement('span');
+  g.className='ghostnum';g.dataset.para='-0.07';g.textContent=m[1];
+  g.setAttribute('aria-hidden','true');
+  k.closest('section').appendChild(g);
+});
+paraEls=$$('[data-para]').map(el=>({el,sp:parseFloat(el.dataset.para)||-.06}));
+velEls=$$('h1,h2,.foot-big');
+
+/* ===== JOURNEY: scroll-driven sticky terminal ===== */
+const JSTEPS=[
+ [
+  '<span class="ps">paw@stack:~$</span> <span class="cmd">curl -s https://dog.ceo/api/breeds/image/random</span>',
+  '&nbsp;',
+  '<span class="dim"># no headers. no bearer tokens. no</span>',
+  '<span class="dim"># x-paw-id. a plain get — exactly like</span>',
+  '<span class="dim"># browsing the web, minus the clicking.</span>'
+ ],
+ [
+  '<span class="ok">HTTP/2 200</span> <span class="dim">· 11 ms · dog.ceo</span>',
+  '<span class="json">{</span>',
+  '  <span class="hl">"message"</span>: <span class="url">"https://images.dog.ceo/breeds/…/n02086240_574.jpg"</span>,',
+  '  <span class="hl">"status"</span>: <span class="hl">"200"</span>',
+  '<span class="json">}</span>',
+  '&nbsp;',
+  '<span class="dim"># two keys. same shape. every call,</span>',
+  '<span class="dim"># every environment, forever. schema v1.</span>'
+ ],
+ [
+  '<span class="dim"># the reply is not even where the face lives</span>',
+  '<span class="url">images.dog.ceo</span>  ──►  your user in <span class="ok">Tokyo</span>    <span class="dim">· 19 ms</span>',
+  '<span class="url">images.dog.ceo</span>  ──►  your user in <span class="ok">Lima</span>     <span class="dim">· 27 ms</span>',
+  '<span class="url">cat image CDN</span>    ──►  your user in <span class="ok">Nairobi</span>  <span class="dim">· 24 ms</span>',
+  '&nbsp;',
+  '<span class="dim"># p95 stays in the single-digit-tens.</span>',
+  '<span class="dim"># the dog is closer than your dns.</span>'
+ ],
+ [
+  '<span class="ps">paw@stack:~$</span> <span class="cmd">dog --live</span>',
+  '<div class="j-live">&nbsp;</div>',
+  '<span class="dim"># this one is not a mock. it runs the</span>',
+  '<span class="dim"># moment you reach the last step.</span>'
+ ]
+];
+const jbody=$('#j-body'),jind=$('#jstep-ind');
+let jcur=-1;
+function jrender(i){
+  jbody.innerHTML=JSTEPS[i].map(l=>`<div class="tl">${l||'&nbsp;'}</div>`).join('')+
+   '<div class="tl"><span class="ps">paw@stack:~$</span> <span class="j-caret"></span></div>';
+  if(i===3)jlive();
+}
+async function jlive(){
+  const d=jbody.querySelector('.j-live');if(!d||d.dataset.done)return;d.dataset.done='1';
+  d.innerHTML='<span class="dim">▶ GET '+DOG_URL+'</span> <span class="dim">…</span>';
+  try{
+    const r=await fetchPet('dog');
+    d.innerHTML='<span class="ok">✓ 200 OK</span> <span class="dim">in '+r.ms+'ms · '+r.source+'</span>'+
+     '<div class="j-live-img"><img src="'+r.url+'" alt="a real dog, fetched live" loading="lazy"><span>'+r.url+'</span></div>';
+  }catch(e){d.innerHTML='<span class="warn">✗ the dog servers blinked — scroll up and back down.</span>';}
+}
+function jset(i){
+  $$('.j-step').forEach(s=>s.classList.toggle('active',+s.dataset.step===i));
+  jind.textContent='STEP '+(i+1)+'/4';
+  if(jcur===i)return;jcur=i;
+  if(RM){jrender(i);return;}
+  jbody.classList.add('switching');
+  setTimeout(()=>{jrender(i);jbody.classList.remove('switching');},220);
+}
+const jio=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting)jset(+e.target.dataset.step);},{rootMargin:'-42% 0px -42% 0px',threshold:0});
+$$('.j-step').forEach(s=>jio.observe(s));
+jset(0);
+</script>
+<script>
+'use strict';
+const DOG_URL='https://dog.ceo/api/breeds/image/random';
+const CAT_URL='https://cat.ceo/api/breeds/image/random';
+const CAT_FALLBACK='https://api.thecatapi.com/v1/images/search';
+
+/* shared fetchers (also used by feed + docs) */
+let sessionCount=0;
+async function fetchPet(pet){
+  const t0=performance.now();
+  let res,source;
+  if(pet==='dog'){
+    res=await fetch(DOG_URL);source='dog.ceo';
+  }else{
+    const r=await fetch(CAT_URL);
+    const ct=r.headers.get('content-type')||'';
+    if(ct.includes('json')){res=r;source='cat.ceo';}
+    else{res=await fetch(CAT_FALLBACK);source='cat.ceo → thecatapi (fallback)';}
+  }
+  const ms=Math.max(1,Math.round(performance.now()-t0));
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  const url=pet==='dog'?data.message:(Array.isArray(data)?data[0].url:data.message);
+  if(!url)throw new Error('no image in response');
+  sessionCount++;
+  return {url,ms,source};
+}
+
+/* ===== TERMINAL ===== */
+const term={
+  body:$('#t-body'),input:$('#tinput'),history:[],hi:-1,booted:false,
+  el(html){const d=document.createElement('div');d.className='tl';d.innerHTML=html;this.body.appendChild(d);this.body.scrollTop=this.body.scrollHeight;return d;},
+  out(html){return this.el(html);},
+  cmdline(s){return this.el(`<span class="ps">paw@stack:~$</span> <span class="cmd">${s}</span>`);},
+  async boot(){
+    if(this.booted)return;this.booted=true;
+    const lines=[
+      ['paw --version',()=>this.out(`<span class="json">paw v2.6.0 (build: fetch-forever) — two endpoints, zero auth</span>`)],
+      ['dog',async()=>{
+        const l=this.out('<span class="dim">▶ GET</span> <span class="url">'+DOG_URL+'</span> <span class="dim">…</span>');
+        try{const r=await fetchPet('dog');
+          l.innerHTML=`<span class="ok">✓ 200 OK</span> <span class="dim">in ${r.ms}ms · ${r.source}</span>`;
+          this.out(`<span class="json">{ <span class="hl">"message"</span>: "${r.url}", <span class="hl">"status"</span>: <span class="hl">"200"</span> }</span>`);
+          updateChip(r);sndFetch();
+        }catch(e){l.innerHTML='<span class="warn">✗ request failed — try again</span>';sndErr();}
+      }],
+      ['cat',async()=>{
+        const l=this.out('<span class="dim">▶ GET</span> <span class="url">'+CAT_URL+'</span> <span class="dim">…</span>');
+        try{const r=await fetchPet('cat');
+          l.innerHTML=`<span class="ok">✓ 200 OK</span> <span class="dim">in ${r.ms}ms · ${r.source}</span>`;
+          this.out(`<span class="json">{ <span class="hl">"message"</span>: "${r.url}", <span class="hl">"source"</span>: <span class="hl">"${r.source}"</span> }</span>`);
+          updateChip(r);sndFetch();
+        }catch(e){l.innerHTML='<span class="warn">✗ request failed — try again</span>';sndErr();}
+      }],
+      ['help',()=>this.out(`<span class="dim">commands:</span>\n  <span class="hl">dog</span>      fetch a live dog image\n  <span class="hl">cat</span>      fetch a live cat image\n  <span class="hl">stats</span>    system vitals\n  <span class="hl">whoami</span>   identity check\n  <span class="hl">echo</span>     print anything\n  <span class="hl">sound</span>    [on|off] audio blips\n  <span class="hl">confetti</span> celebrate\n  <span class="hl">matrix</span>   enter the green\n  <span class="hl">clear</span>    wipe the screen`)]
+    ];
+    for(const [c,fn] of lines){
+      await this.typeCmd(c);
+      sndDn();
+      await fn();
+      this.push(c);
+      await new Promise(r=>setTimeout(r,RM?60:rand(300,700)));
+    }
+    this.out('<span class="dim">↑ typed commands are remembered — ↑↓ to recall, Enter to run. go on, poke it.</span>');
+  },
+  async typeCmd(s){
+    const d=this.el('<span class="ps">paw@stack:~$</span> <span class="cmd"></span>');
+    const span=d.querySelector('.cmd');
+    for(const ch of s){span.textContent+=ch;this.body.scrollTop=this.body.scrollHeight;await new Promise(r=>setTimeout(r,RM?8:rand(18,55)));}
+  },
+  push(c){this.history.push(c);this.hi=this.history.length;},
+  async run(raw){
+    const c=raw.trim();if(!c)return;
+    this.cmdline(c);sndUp();
+    const [name,...args]=c.split(/\s+/);
+    switch(name){
+      case 'help':
+        this.out(`<span class="dim">commands:</span>\n  <span class="hl">dog</span>      fetch a live dog image\n  <span class="hl">cat</span>      fetch a live cat image\n  <span class="hl">stats</span>    system vitals\n  <span class="hl">whoami</span>   identity check\n  <span class="hl">echo</span>     print anything\n  <span class="hl">sound</span>    [on|off] audio blips\n  <span class="hl">confetti</span> celebrate\n  <span class="hl">matrix</span>   enter the green\n  <span class="hl">clear</span>    wipe the screen`);break;
+      case 'dog':
+      case 'cat':{
+        const l=this.out('<span class="dim">▶ GET</span> <span class="url">'+(name==='dog'?DOG_URL:CAT_URL)+'</span> <span class="dim">…</span>');
+        try{const r=await fetchPet(name);
+          l.innerHTML=`<span class="ok">✓ 200 OK</span> <span class="dim">in ${r.ms}ms · ${r.source}</span>`;
+          this.out(`<span class="json">{ <span class="hl">"message"</span>: "${r.url}", <span class="hl">"status"</span>: <span class="hl">"200"</span> }</span>`);
+          updateChip(r);setStage(r);sndFetch();
+        }catch(e){l.innerHTML=`<span class="warn">✗ ${e.message} — the ${name} servers blinked. retry?</span>`;sndErr();}
+        break;}
+      case 'stats':
+        this.out(`<span class="json">uptime      <span class="ok">4,126 days</span>\nimages      <span class="ok">${(8412906+sessionCount).toLocaleString('en-US')}</span> served (+${sessionCount} this session)\np50 latency <span class="ok">11 ms</span>\nmood        <span class="ok">extremely fetchable</span></span>`);break;
+      case 'whoami':
+        this.out(`<span class="json">pet-content-engineer @ pawstack.cloud — clearance: <span class="ok">🐾🐾🐾</span></span>`);break;
+      case 'echo':
+        this.out(`<span class="json">${c.slice(5).replace(/</g,'&lt;')||'…silence, very poetic'}</span>`);break;
+      case 'sound':
+        setSound(args[0]==='off'?!soundOn:!soundOn);
+        this.out(`<span class="json">audio blips: <span class="ok">${soundOn?'ON':'off'}</span> ${soundOn?'(you are now hearing the internet think)':''}</span>`);break;
+      case 'confetti':
+        burstRect($('#t-body').getBoundingClientRect(),42);
+        this.out(`<span class="json">🎉 confetti deployed. the ${pick(['dog','cat'])}s approve.</span>`);break;
+      case 'matrix':{
+        const chars='▚▞▙▟░▒▓#@%&*';
+        for(let i=0;i<8;i++){
+          this.out('<span style="color:var(--lime)">'+' '.repeat(Math.floor(Math.random()*4))+[...Array(46)].map(()=>chars[Math.floor(Math.random()*chars.length)]).join('')+'</span>');
+          this.body.scrollTop=this.body.scrollHeight;
+          await new Promise(r=>setTimeout(r,45));
+        }
+        this.out('<span class="dim">you were never here. (probably)</span>');break;}
+      case 'clear':
+        this.body.innerHTML='';this.out('<span class="dim">screen cleared. paws remain.</span>');break;
+      default:
+        this.out(`<span class="warn">paw: command not found: ${name.replace(/</g,'&lt;')} — type <span class="hl">help</span></span>`);sndErr();
+    }
+    this.push(c);
+  }
+};
+term.input.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){const v=term.input.value;term.input.value='';term.run(v);}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(term.hi>0){term.hi--;term.input.value=term.history[term.hi]||'';}}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(term.hi<term.history.length){term.hi++;term.input.value=term.history[term.hi]||'';}}
+});
+$$('.tchip').forEach(ch=>ch.addEventListener('click',()=>{term.run(ch.dataset.cmd);term.input.focus();}));
+if(FINE)term.body.addEventListener('click',()=>term.input.focus());
+
+/* ===== HERO LIVE CHIP ===== */
+function updateChip(r){
+  const p=$('#respline'),img=$('#respimg');
+  p.textContent=r.url.replace(/^https:\/\//,'');
+  if(img)img.src=r.url;
+}
+
+/* ===== LIVE FEED ===== */
+const stageImg=$('#stageimg'),stageEmpty=$('#stageempty');
+let feedPet='dog',fetching=false;
+function setStage(r){
+  stageEmpty.style.display='none';
+  stageImg.classList.remove('show');
+  stageImg.onload=()=>stageImg.classList.add('show');
+  stageImg.src=r.url;
+  $('#srcname').textContent=r.source;
+  $('#lat').textContent=r.ms+' ms';
+  $('#sess').textContent=sessionCount;
+  const ph=document.createElement('div');ph.className='ph';
+  const im=new Image();im.src=r.url;ph.appendChild(im);
+  ph.addEventListener('click',()=>{
+    stageEmpty.style.display='none';
+    stageImg.classList.remove('show');stageImg.onload=()=>stageImg.classList.add('show');
+    stageImg.src=r.url;sndUp();
+  });
+  const strip=$('#strip');strip.prepend(ph);
+  while(strip.children.length>14)strip.lastChild.remove();
+}
+async function doFetch(){
+  if(fetching)return;fetching=true;
+  const b=$('#fetchbtn');b.style.opacity='.6';
+  try{const r=await fetchPet(feedPet);setStage(r);updateChip(r);}
+  catch(e){sndErr();}
+  b.style.opacity='1';fetching=false;
+}
+$('#fetchbtn').addEventListener('click',()=>{doFetch();burstRect($('#fetchbtn').getBoundingClientRect(),28);});
+$('#tab-dog').addEventListener('click',()=>{feedPet='dog';$('#tab-dog').classList.add('on');$('#tab-cat').classList.remove('on');sndUp();});
+$('#tab-cat').addEventListener('click',()=>{feedPet='cat';$('#tab-cat').classList.add('on');$('#tab-dog').classList.remove('on');sndUp();});
+let loopOn=false,loopT=null;
+$('#loop').addEventListener('click',()=>{
+  loopOn=!loopOn;$('#loop').classList.toggle('on',loopOn);sndDn();
+  if(loopOn){doFetch();loopT=setInterval(doFetch,2600);}
+  else clearInterval(loopT);
+});
+
+/* ===== CONFETTI ===== */
+function burstRect(rect,n=30){
+  const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+  const cols=['#ff5fa2','#8b5cff','#00e5ff','#c0ff3e','#ffb43a','#ffffff'];
+  for(let i=0;i<n;i++){
+    const p=document.createElement('div');p.className='confetti-p';
+    p.style.left=cx+'px';p.style.top=cy+'px';
+    p.style.background=cols[i%cols.length];
+    p.style.setProperty('--tx',rand(-160,160)+'px');
+    p.style.setProperty('--ty',rand(-180,120)+'px');
+    p.style.setProperty('--rot',rand(-540,540)+'deg');
+    document.body.appendChild(p);
+    p.addEventListener('animationend',()=>p.remove());
+  }
+}
+
+/* ===== DOCS: TABS / COPY / RUN ===== */
+let curTab='curl';
+$$('.tab').forEach(t=>t.addEventListener('click',()=>{
+  $$('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  ['curl','js','py'].forEach(l=>$('#code-'+l).hidden=l!==t.dataset.tab);
+  curTab=t.dataset.tab;sndUp();
+}));
+$('#copybtn').addEventListener('click',async()=>{
+  const txt=$('#code-'+curTab).textContent;
+  try{await navigator.clipboard.writeText(txt);}catch(e){}
+  const b=$('#copybtn');b.textContent='✓ COPIED';setTimeout(()=>b.textContent='⧉ COPY',1400);sndDn();
+});
+$('#runbtn').addEventListener('click',async()=>{
+  const out=$('#coderesp'),pet=curTab==='curl'?'dog':'cat';
+  const url=pet==='dog'?DOG_URL:CAT_URL;
+  out.innerHTML=`<span class="dim">$ executing live request…</span>\n<span class="dim">▶ GET ${url}</span>\n<span class="dim">…</span>\n`;
+  try{
+    const r=await fetchPet(pet);
+    out.innerHTML=`<span class="ok">✓ 200 OK</span> <span class="dim">in ${r.ms}ms · ${r.source}</span>\n\n`+
+      `<span style="color:#d7d7f5">{\n  "message": "${r.url}",\n  "status": "200"\n}</span>\n\n`+
+      `<span class="dim">// that image exists right now. go look. 🐾</span>`;
+    sndFetch();burstRect($('#runbtn').getBoundingClientRect(),22);
+  }catch(e){out.innerHTML=`<span style="color:var(--amber)">✗ ${e.message} — the endpoint blinked. try again?</span>`;sndErr();}
+});
+
+/* ===== KONAMI + EASTER EGGS ===== */
+const KSEQ=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let kbuf=[];
+addEventListener('keydown',e=>{
+  if(e.key==='Tab'||term.input===document.activeElement)return;
+  kbuf.push(e.key);kbuf=kbuf.slice(-KSEQ.length);
+  if(KSEQ.every((k,i)=>kbuf[i]===k)){
+    document.body.classList.add('rainbow');
+    burstRect({left:innerWidth/2,top:innerHeight/2,width:0,height:0},60);
+    setTimeout(()=>document.body.classList.remove('rainbow'),6000);
+    sndFetch();
+  }
+});
+
+/* ===== FOOTER ===== */
+$('#yr').textContent=new Date().getFullYear();
+$('#totop').addEventListener('click',()=>scrollTo({top:0,behavior:'smooth'}));
+</script>
+</body>
+</html>
